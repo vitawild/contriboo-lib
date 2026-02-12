@@ -1,0 +1,16 @@
+[project]
+name = "contriboo"
+version = "0.0.1"
+description = "Library for assessment of the contribution of developers on GitHub"
+readme = "README.md"
+authors = [
+  { name = "alchemmist", email = "anton.ingrish@gmail.com" },
+  { name = "Alex Smirnov" },
+  { name = "vitawild" },
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
