@@ -1,0 +1,134 @@
+from typing import TypedDict, cast
+
+import requests
+
+from contriboo.exceptions import GitHubRateLimitError
+from contriboo.integrations.github.requests_provider import GitHubProvider
+
+
+class SessionCall(TypedDict):
+    url: str
+    headers: dict[str, str]
+    params: dict[str, object]
+    timeout: int
+
+
+class FakeResponse:
+    def __init__(
+        self,
+        payload: dict[str, object],
+        status_code: int = 200,
+        headers: dict[str, str] | None = None,
+    ):
+        self._payload = payload
+        self.status_code = status_code
+        self.headers = headers or {}
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise requests.HTTPError(
+                "http error",
+                response=cast(requests.Response, self),
+            )
+
+    def json(self) -> dict[str, object]:
+        return self._payload
+
+
+class FakeSession:
+    def __init__(self) -> None:
+        self.calls: list[SessionCall] = []
+
+    def get(
+        self, url: str, headers: dict[str, str], params: dict[str, object], timeout: int
+    ) -> FakeResponse:
+        self.calls.append(
+            {"url": url, "headers": headers, "params": params, "timeout": timeout}
+        )
+        page = params["page"]
+        if page == 1:
+            return FakeResponse(
+                {
+                    "items": [
+                        {"repository": {"full_name": "a/repo1"}},
+                        {"repository": {"full_name": "a/repo1"}},
+                        {"repository": {"full_name": "b/repo2"}},
+                    ]
+                }
+            )
+        return FakeResponse({"items": []})
+
+
+def test_find_repositories_for_author_deduplicates() -> None:
+    session = FakeSession()
+    provider = GitHubProvider(
+        token="token",
+        timeout_sec=30,
+        retries=3,
+        retry_delay_sec=0,
+        max_search_pages=20,
+        session=cast(requests.Session, session),
+    )
+
+    repositories = provider.find_repositories_for_author(username="octocat", days=10)
+
+    assert sorted(str(repository) for repository in repositories) == [
+        "a/repo1",
+        "b/repo2",
+    ]
+    assert repositories[0].owner() in {"a", "b"}
+    assert len(session.calls) == 2
+    assert session.calls[0]["headers"]["Authorization"] == "Bearer token"
+
+
+def test_find_repositories_for_author_supports_all_period() -> None:
+    session = FakeSession()
+    provider = GitHubProvider(
+        token=None,
+        timeout_sec=30,
+        retries=1,
+        retry_delay_sec=0,
+        max_search_pages=2,
+        session=cast(requests.Session, session),
+    )
+
+    provider.find_repositories_for_author(username="octocat", days="all")
+
+    first_params = session.calls[0]["params"]
+    query = str(first_params["q"])
+    assert query == "author:octocat"
+    assert "committer-date" not in query
+
+
+def test_find_repositories_for_author_handles_rate_limit() -> None:
+    class RateSession:
+        def get(
+            self,
+            url: str,
+            headers: dict[str, str],
+            params: dict[str, object],
+            timeout: int,
+        ) -> FakeResponse:
+            return FakeResponse(
+                payload={"message": "rate limit exceeded"},
+                status_code=403,
+                headers={
+                    "X-RateLimit-Remaining": "0",
+                    "X-RateLimit-Reset": "9999999999",
+                },
+            )
+
+    provider = GitHubProvider(
+        token=None,
+        timeout_sec=30,
+        retries=1,
+        retry_delay_sec=0,
+        max_search_pages=1,
+        session=cast(requests.Session, RateSession()),
+    )
+
+    try:
+        provider.find_repositories_for_author(username="octocat", days=1)
+        assert False, "expected GitHubRateLimitError"
+    except GitHubRateLimitError as exc:
+        assert "rate limit" in str(exc).lower()
