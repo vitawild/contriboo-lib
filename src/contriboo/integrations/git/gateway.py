@@ -104,14 +104,14 @@ class GitGateway(GitHistoryGateway):
 
         signatures: list[CommitSignature] = []
         for line in raw.splitlines():
-            parts = [part.strip().lower() for part in line.split("\x1f")]
+            parts = [part.strip() for part in line.split("\x1f")]
             if len(parts) != COMMIT_SIGNATURE_PARTS_COUNT:
                 continue
             signatures.append(
                 CommitSignature(
-                    author_email=parts[0],
+                    author_email=parts[0].lower(),
                     author_name=parts[1],
-                    committer_email=parts[2],
+                    committer_email=parts[2].lower(),
                     committer_name=parts[3],
                 ),
             )
