@@ -231,7 +231,7 @@ class GitHubProvider(ProfileRepositoryProvider):
 
         try:
             reset_timestamp = int(reset)
-        except ValueError:
+        except (ValueError, TypeError):
             return False
 
         wait_seconds = reset_timestamp - int(time.time()) + 1

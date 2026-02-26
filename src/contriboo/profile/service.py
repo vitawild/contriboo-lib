@@ -10,7 +10,7 @@ from contriboo.exceptions import ContribooError, InvalidDaysRangeError
 from contriboo.repository_name import RepositoryName
 
 from .interfaces import GitHistoryGateway, ProfileRepositoryProvider
-from .models import ProfileCommitCountResult, RepositoryCommitCount
+from .models import CommitSignature, ProfileCommitCountResult, RepositoryCommitCount
 from .types import DaysRange
 
 logger = logging.getLogger(__name__)
@@ -240,15 +240,21 @@ class ProfileAnalysisService:
         """
         commit_count = 0
         for signature in self._git_gateway.iter_commit_signatures(repo_dir, branch):
+            (
+                author_name,
+                committer_name,
+                author_email,
+                committer_email,
+            ) = self._normalize_signature(signature)
             matches_email = normalized_email and (
-                normalized_email in (signature.author_email, signature.committer_email)
+                normalized_email in (author_email, committer_email)
             )
             if matches_email:
                 commit_count += 1
                 continue
 
             matches_username = normalized_username and (
-                normalized_username in (signature.author_name, signature.committer_name)
+                normalized_username in (author_name, committer_name)
             )
             if matches_username:
                 commit_count += 1
@@ -336,6 +342,28 @@ class ProfileAnalysisService:
             return
         if isinstance(days, bool) or not isinstance(days, int) or days <= 0:
             raise InvalidDaysRangeError.must_be_positive_int_or_all()
+
+    def _normalize_signature(
+        self,
+        signature: CommitSignature,
+    ) -> tuple[str, str, str, str]:
+        """
+        Normalize commit signature fields for case-insensitive matching.
+
+        Args:
+            signature: Raw commit signature from git history.
+
+        Returns:
+            tuple[str, str, str, str]: Normalized author/committer
+            names and emails.
+
+        """
+        return (
+            (signature.author_name or "").strip().lower(),
+            (signature.committer_name or "").strip().lower(),
+            (signature.author_email or "").strip().lower(),
+            (signature.committer_email or "").strip().lower(),
+        )
 
     def _emit_repository_start(
         self,
