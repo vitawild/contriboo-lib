@@ -129,12 +129,17 @@ class GitGateway(GitHistoryGateway):
         Returns:
             bool: `True` when branch exists, otherwise `False`.
 
+        Raises:
+            GitOperationTimeoutError: If branch-check command exceeds timeout.
+
         """
         try:
             self._run(
                 ["git", "rev-parse", "--verify", f"origin/{branch}"],
                 cwd=repository_dir,
             )
+        except GitOperationTimeoutError:
+            raise
         except GitOperationError:
             return False
         else:
