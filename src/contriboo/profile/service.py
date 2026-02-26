@@ -4,6 +4,7 @@ import datetime
 import logging
 import tempfile
 from pathlib import Path
+from typing import Literal
 
 from contriboo.exceptions import ContribooError, InvalidDaysRangeError
 from contriboo.repository_name import RepositoryName
@@ -358,7 +359,7 @@ class ProfileAnalysisService:
         repository_name: RepositoryName,
         index: int,
         total: int,
-        status: str,
+        status: Literal["ok", "skipped"],
         message: str,
     ) -> None:
         """
