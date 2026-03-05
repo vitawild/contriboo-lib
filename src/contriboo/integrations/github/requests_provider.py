@@ -107,21 +107,21 @@ class GitHubProvider(ProfileRepositoryProvider):
         return list(repositories.keys())
 
     def count_followers(self, username: str) -> int | None:
-        """Count the number of followers for a given user."""
         """
+        Count the number of followers for a given user.
+
         Args:
             username: The username of the user.
 
         Returns:
             int: The number of followers.
 
-        Raises:
-            GitHubResponseSchemaError: If the response schema is invalid.
         """
 
         raw_payload = GitHubUserDTO.model_validate(
             self._get_json(path=f"/users/{username}", params={})
         )
+        return raw_payload.followers
 
     def _build_query(self, username: str, days: DaysRange) -> str:
         """

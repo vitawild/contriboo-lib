@@ -83,6 +83,10 @@ class ProfileAnalysisService:
         )
         return self._build_result(started_at, repositories, repo_results)
 
+    def count_followers(self, username: str) -> int | None:
+        res = self._repository_provider.count_followers(username)
+        return res
+
     def _scan_repositories(
         self,
         repositories: list[RepositoryName],
