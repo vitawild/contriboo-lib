@@ -255,7 +255,7 @@ class GitHubProvider(ProfileRepositoryProvider):
         """
 
         repos = self.find_repositories_for_author(username, days)
-        pr_total = 0
+        total_prs = 0
 
         since = (
             datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=days)
