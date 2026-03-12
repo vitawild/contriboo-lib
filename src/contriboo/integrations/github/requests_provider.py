@@ -16,7 +16,7 @@ from contriboo.profile.interfaces import ProfileRepositoryProvider
 from contriboo.profile.types import DaysRange
 from contriboo.repository_name import RepositoryName
 
-from .dto import GitHubCommitSearchResponseDTO
+from .dto import GitHubCommitSearchResponseDTO, GitHubUserDTO
 
 type RequestScalar = str | bytes | int | float
 type RequestValue = (
@@ -105,6 +105,22 @@ class GitHubProvider(ProfileRepositoryProvider):
                     repositories[repository_name] = True
 
         return list(repositories.keys())
+
+    def count_followers(self, username: str) -> int:
+        """
+        Count the number of followers for a given user.
+
+        Args:
+            username: The username of the user.
+
+        Returns:
+            int: The number of followers.
+
+        """
+        raw_payload = GitHubUserDTO.model_validate(
+            self._get_json(path=f"/users/{username}", params={})
+        )
+        return raw_payload.followers
 
     def _build_query(self, username: str, days: DaysRange) -> str:
         """
