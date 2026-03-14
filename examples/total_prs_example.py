@@ -15,8 +15,7 @@ if __name__ == "__main__":
     email = "octocat@example.com"
     days = 3
 
-
-    result = client.profile.pull_requests_total(
+    result = client.profile.count_total_pull_requests(
         username=username,
         email=email,
         days=days,
