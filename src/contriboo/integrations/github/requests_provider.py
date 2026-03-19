@@ -16,7 +16,7 @@ from contriboo.profile.interfaces import ProfileRepositoryProvider
 from contriboo.profile.types import DaysRange
 from contriboo.repository_name import RepositoryName
 
-from .dto import GitHubCommitSearchResponseDTO, GitHubUserDTO
+from .dto import GitHubCommitSearchResponseDTO, GitHubUserDTO, GitHubSearchPullRequestsDTO
 
 type RequestScalar = str | bytes | int | float
 type RequestValue = (
@@ -257,7 +257,7 @@ class GitHubProvider(ProfileRepositoryProvider):
 
         raise GitHubRateLimitError.exceeded(wait_seconds)
 
-    def pull_requests_total(self, username: str, days: int) -> int:
+    def count_pull_requests_total(self, username: str, days: int) -> int:
         """
         Amount of sent and merged pull requests for every repo
          or in total for last n days.
@@ -273,35 +273,31 @@ class GitHubProvider(ProfileRepositoryProvider):
             nun yet
 
         """
-        repos = self.find_repositories_for_author(username, days)
         total_prs = 0
-
-        since = (
-            datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=days)
-        ).date()
-
-        for repo in repos:
-            url = (
-                f"https://api.github.com/search/issues?q=repo:{repo.as_full_name()}+author:{username}+type:pr"
+        
+        url = (
+                f"/search/issues?q=author:{username}+type:pr"
             )
-            params = {"state": "all", "per_page": 100}
 
-            while url:
-                list_of_prs = self._get_json(path=url, params=params)
+        list_of_prs = GitHubSearchPullRequestsDTO.model_validate(self._get_json(path=url,
+            params={"state": "all", "per_page": 100}))
 
-                for pr in list_of_prs["items"]:
-                    created_at = pr["created_at"]
-                    merged_at = pr["merged_at"]
+        return len(list_of_prs.items)
 
-                    if created_at:
-                        created_dt = datetime.datetime.fromisoformat(created_at)
-                        if created_dt >= since:
-                            total_prs += 1
-                            continue
+        for pr in list_of_prs.items:
+            created_at = pr.created_at
+            merged_at = pr.pull_request.merged_at
 
-                    if merged_at:
-                        merged_dt = datetime.datetime.fromisoformat(merged_at)
-                        if merged_dt >= since:
-                            total_prs += 1
+            if created_at:
+                created_dt = datetime.datetime.fromisoformat(created_at)
+                if created_dt:
+                    total_prs += 1
+                    continue
+
+            if merged_at:
+                merged_dt = datetime.datetime.fromisoformat(merged_at)
+                if merged_dt:
+                    total_prs += 1
 
         return total_prs
+        

@@ -83,14 +83,14 @@ class ProfileAnalysisService:
         )
         return self._build_result(started_at, repositories, repo_results)
 
-    def count_total_pull_requests(
+    def count_pull_requests_total(
         self,
         username: str,
         email: str | None,
         days: DaysRange,
         *,
         show_progress: bool = False,
-    ) -> ProfileCommitCountResult:
+    ) -> int:
         """
         Count total pull requests for one profile per repository
         Args:
@@ -100,13 +100,13 @@ class ProfileAnalysisService:
             show_progress: Flag to print progress lines during processing.
 
         Returns:
-            ProfileCommitCountResult: Aggregated and per-repository counting result.
+            int 
 
         """
         self._validate_days(days)
         started_at = datetime.datetime.now(datetime.UTC)
 
-        return self._repository_provider.count_pull_requests_total(username)
+        return self._repository_provider.count_pull_requests_total(username, days)
 
     def count_followers(self, username: str) -> int:
         """
